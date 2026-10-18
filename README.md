@@ -2,8 +2,10 @@
 
 An Android app for reading the Witch Cult Translations Re:Zero web novel translations.
 
-- Pick an arc, then a chapter, and read.
-- Light and dark mode, adjustable text size.
+- Pick an arc, then a chapter, and read. Arcs 1–10, including the Arc 2 and 3 chapters hosted by partner translators.
+- Light, sepia and dark themes; three reading fonts; text size, line spacing and margins.
+- Keeps the screen on while a chapter is open (can be switched off).
+- Bookmarks: tap the bookmark button while reading to save the exact spot.
 - **Download arc** saves every chapter, with its images, onto your phone. After that, reading uses no data.
 - Remembers where you stopped ("Return to checkpoint") and ticks off chapters you've finished.
 
@@ -24,3 +26,10 @@ GitHub builds the installable `.apk` for you, for free:
 6. Open the downloaded file. Android will ask you to allow installing from your browser; allow it, then tap **Install**.
 
 To update the app later, upload changed files to the same repository; a new build appears under Releases.
+
+## How the build works
+
+- `scripts/setup.js` runs during `npm install`. It copies the reading fonts into `www/fonts`
+  and, on GitHub's build machine, installs the permanent signing key from `signing/`.
+- The same signing key is used for every build, so a new version installs as an update
+  and keeps your downloads, bookmarks and progress.
