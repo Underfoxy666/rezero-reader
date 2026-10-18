@@ -1,0 +1,11 @@
+{
+  "appId": "app.rezeroreader.wct",
+  "appName": "Re:Zero Reader",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#14121b"
+  },
+  "plugins": {
+    "CapacitorHttp": { "enabled": false }
+  }
+}

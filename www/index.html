@@ -1,0 +1,792 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Re:Zero">
+<meta name="theme-color" content="#f6f3f8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14121b" media="(prefers-color-scheme: dark)">
+<title>Re:Zero Reader</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&display=swap">
+<style>
+/* Layout: one narrow reading column; sticky top bar; arcs as a numbered ledger, chapters grouped by phase */
+:root{
+  --bg:#f6f3f8; --surface:#ffffff; --fg:#1f1b29; --muted:#6c6680; --line:#e3dde9;
+  --accent:#5b3a8c; --accent-soft:#ece4f6; --done:#2f7a5b;
+  --display:"Cormorant Garamond", Georgia, "Times New Roman", serif;
+  --read:"Literata", Georgia, "Times New Roman", serif;
+  --ui:system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --fs:18px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#14121b; --surface:#1d1a27; --fg:#e6e1ee; --muted:#9d96ad; --line:#2e2a3b;
+    --accent:#b9a0e6; --accent-soft:#2a2340; --done:#6fc39d; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#14121b; --surface:#1d1a27; --fg:#e6e1ee; --muted:#9d96ad; --line:#2e2a3b;
+  --accent:#b9a0e6; --accent-soft:#2a2340; --done:#6fc39d; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 var(--ui);
+  padding-bottom:env(safe-area-inset-bottom,0px)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:30}
+a{color:var(--accent)}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:680px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+/* top bar */
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:color-mix(in srgb,var(--bg) 92%,transparent);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.bar .wrap{display:flex;align-items:center;gap:8px;min-height:52px}
+.bar h1{flex:1;min-width:0;margin:0;font:600 17px/1.2 var(--ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar h1 small{display:block;font-weight:400;font-size:12px;color:var(--muted)}
+.icon{width:40px;height:40px;flex:none;display:grid;place-items:center;border:0;background:transparent;border-radius:10px;cursor:pointer}
+.icon:active{background:var(--accent-soft)}
+.icon svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.progress{height:2px;background:var(--accent);width:0;transition:width .1s linear}
+
+/* settings sheet */
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:40;background:var(--surface);border-top:1px solid var(--line);
+  border-radius:16px 16px 0 0;box-shadow:0 -10px 30px rgb(0 0 0 / .18);
+  padding:18px max(16px,env(safe-area-inset-right,0px)) calc(20px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.sheet .wrap{display:grid;gap:16px;padding:0}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.row > span{color:var(--muted);font-size:13px;text-transform:uppercase;letter-spacing:.06em}
+.seg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{border:0;background:transparent;padding:9px 14px;cursor:pointer;min-width:52px}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--bg)}
+.scrim{position:fixed;inset:0;z-index:35;background:rgb(0 0 0 / .3)}
+
+/* home */
+.hero{padding-block:28px 8px}
+.hero h2{font:700 40px/1 var(--display);margin:0;letter-spacing:.01em}
+.hero p{margin:6px 0 0;color:var(--muted)}
+.mark{color:var(--accent);letter-spacing:.5em;font-size:12px;margin:18px 0 4px;overflow:hidden;white-space:nowrap}
+.resume{display:flex;gap:14px;align-items:center;margin-block:18px 6px;padding:14px 16px;background:var(--accent-soft);
+  border-radius:14px;text-decoration:none;color:var(--fg)}
+.resume b{display:block;font:600 13px/1.3 var(--ui);color:var(--accent);text-transform:uppercase;letter-spacing:.06em}
+.resume span{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.resume > div{min-width:0;flex:1}
+.arcs{list-style:none;margin:10px 0 40px;padding:0}
+.arcs a{display:grid;grid-template-columns:56px 1fr auto;gap:12px;align-items:center;padding:16px 0;
+  border-bottom:1px solid var(--line);text-decoration:none;color:var(--fg)}
+.num{font:600 30px/1 var(--display);color:var(--accent);text-align:center}
+.arcs strong{display:block;font:600 22px/1.15 var(--display)}
+.arcs em{display:block;font-style:normal;color:var(--muted);font-size:13px}
+.chev{color:var(--muted)}
+
+/* toc */
+.tochead{padding-block:22px 6px}
+.tochead .eyebrow{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+.tochead h2{font:700 32px/1.05 var(--display);margin:4px 0 6px;text-wrap:balance}
+.tochead p{margin:0;color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums}
+.find{width:100%;margin:14px 0 4px;padding:11px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);font:inherit;color:var(--fg)}
+.phase{font:600 20px/1.2 var(--display);margin:22px 0 4px;color:var(--fg);display:flex;align-items:center;gap:10px}
+.phase::after{content:"";flex:1;height:1px;background:var(--line)}
+.chs{list-style:none;margin:0;padding:0}
+.chs a{display:flex;gap:10px;align-items:baseline;padding:12px 4px;border-bottom:1px solid var(--line);text-decoration:none;color:var(--fg)}
+.chs a .t{flex:1;min-width:0}
+.chs a.read{color:var(--muted)}
+.chs a .ok{color:var(--done);font-size:13px;flex:none}
+.chs a.last{background:var(--accent-soft);border-radius:8px;border-bottom-color:transparent}
+.chs a .ext{font-size:12px;color:var(--muted);flex:none}
+
+/* reader */
+.chapter{padding-block:20px 10px;font-family:var(--read);font-size:var(--fs);line-height:1.72}
+.chapter .ctitle{font:700 calc(var(--fs) + 10px)/1.15 var(--display);margin:4px 0 18px;text-wrap:balance}
+.chapter .meta{font:13px/1.4 var(--ui);color:var(--muted)}
+.chapter p{margin:0 0 1em}
+.chapter img{display:block;max-width:100%;height:auto;margin:1em auto;border-radius:6px}
+.chapter .c{text-align:center}
+.chapter .u{text-decoration:underline}
+.chapter .i{font-style:italic}
+.chapter .b{font-weight:600}
+.chapter ul,.chapter ol{padding-left:1.3em}
+.chapter blockquote{margin:1em 0;padding-left:1em;border-left:3px solid var(--line);color:var(--muted)}
+.chapter table{border-collapse:collapse;font-size:.9em}
+.tablewrap{overflow-x:auto}
+.chapter hr{border:0;border-top:1px solid var(--line);margin:2em 0}
+.nav{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding-block:12px 36px}
+.nav a,.nav span{display:block;padding:14px;border:1px solid var(--line);border-radius:12px;text-decoration:none;color:var(--fg);background:var(--surface);min-width:0}
+.nav span{opacity:.4}
+.nav small{display:block;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+.nav b{display:block;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nav .next{text-align:right}
+.src{display:block;text-align:center;font-size:13px;color:var(--muted);margin-bottom:24px}
+
+/* offline */
+.offline{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:14px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.offline .msg{flex:1;min-width:180px;font-size:14px}
+.offline .msg small{display:block;color:var(--muted);font-size:12px}
+.btn{border:0;border-radius:10px;padding:10px 14px;background:var(--accent);color:var(--bg);font-weight:600;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--line)}
+.bartrack{flex-basis:100%;height:4px;border-radius:4px;background:var(--line);overflow:hidden}
+.bartrack i{display:block;height:100%;background:var(--accent);width:0;transition:width .2s}
+.dot{width:7px;height:7px;border-radius:50%;flex:none;align-self:center;background:transparent}
+.dot.on{background:var(--accent)}
+.imgph{display:block;width:100%;margin:1em 0;padding:14px;border:1px dashed var(--line);border-radius:8px;background:transparent;color:var(--muted);font:13px/1.4 var(--ui);cursor:pointer}
+.pill{display:inline-block;font:12px/1 var(--ui);padding:4px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent);margin-left:6px;vertical-align:middle}
+
+.state{padding:40px 0;text-align:center;color:var(--muted)}
+.state a{display:inline-block;margin-top:10px}
+.spin{width:28px;height:28px;margin:0 auto 12px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:s 0.8s linear infinite}
+@keyframes s{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion: reduce){.spin{animation-duration:3s}.progress{transition:none}}
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <div class="wrap">
+    <button class="icon" id="back" aria-label="Back" hidden><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <h1 id="title">Re:Zero Reader</h1>
+    <button class="icon" id="settingsBtn" aria-label="Reading settings"><svg viewBox="0 0 24 24"><path d="M4 19l5-14 5 14M6 14h6"/><path d="M15 19l3-8 3 8M16 17h4"/></svg></button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main id="main" class="wrap"></main>
+
+<div class="scrim" id="scrim" hidden></div>
+<div class="sheet" id="sheet" hidden role="dialog" aria-label="Reading settings">
+  <div class="wrap">
+    <div class="row"><span>Theme</span>
+      <div class="seg" id="themeSeg">
+        <button data-v="system">Auto</button><button data-v="light">Light</button><button data-v="dark">Dark</button>
+      </div>
+    </div>
+    <div class="row"><span>Text size</span>
+      <div class="seg">
+        <button id="fsDown" aria-label="Smaller text">A−</button>
+        <button id="fsVal" disabled style="min-width:60px">18</button>
+        <button id="fsUp" aria-label="Larger text">A+</button>
+      </div>
+    </div>
+    <div class="row"><span>Images</span>
+      <div class="seg" id="imgSeg">
+        <button data-v="0">Off</button><button data-v="1">On</button>
+      </div>
+    </div>
+    <p style="margin:0;color:var(--muted);font-size:12px">On: each chapter's images are downloaded once and kept on your phone, so they show offline. Off: saves mobile data; tap any hidden image to load it.</p>
+  </div>
+</div>
+
+<script>
+const SITE = 'https://witchculttranslation.com';
+const API = SITE + '/wp-json/wp/v2';
+const ARCS = [
+  {id:'arc-1',  n:'I',    title:'A Tumultuous First Day', src:{toc:1}},
+  {id:'arc-2',  n:'II',   title:'The Chaotic Week', sub:'Hosted by Eminent Translations', src:{toc:2}},
+  {id:'arc-3',  n:'III',  title:'Return to the Royal Capital', sub:'Mostly on partner sites', src:{toc:3}},
+  {id:'arc-4',  n:'IV',   title:'Everlasting Contract', sub:'Chapters come as PDFs', src:{toc:4}},
+  {id:'arc-5',  n:'V',    title:'Stars What Make History', src:{toc:5}},
+  {id:'arc-6',  n:'VI',   title:'Hall of Memories', src:{toc:6}},
+  {id:'arc-7',  n:'VII',  title:'The Land of Wolves', src:{slug:'arc-7'}},
+  {id:'arc-8',  n:'VIII', title:'Vincent Vollachia', src:{slug:'arc-8'}},
+  {id:'arc-9',  n:'IX',   title:'Light of a Nameless Star', src:{slug:'arc-9'}},
+  {id:'arc-10', n:'X',    title:'The Land of the Lion Kings', src:{slug:'arc-10'}},
+];
+const arcById = id => ARCS.find(a => a.id === id);
+
+/* ---------- saved state (this device only) ---------- */
+const KEY = 'rz-reader-v1';
+let S = {theme:'system', fs:18, images:true, last:null, read:{}, pos:{}};
+try { S = Object.assign(S, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch(e) {}
+function save(){ try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e) {} }
+
+/* ---------- helpers ---------- */
+const $ = s => document.querySelector(s);
+const main = $('#main');
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const clean = s => s.replace(/\s+/g,' ').trim();
+const decode = s => new DOMParser().parseFromString(s,'text/html').body.textContent;
+function normUrl(h){ try{ const u = new URL(h, SITE); u.hash=''; return (u.hostname.replace(/^www\./,'') + u.pathname).replace(/\/$/,'').toLowerCase(); }catch(e){ return h; } }
+function isInternal(h){ try{ return new URL(h, SITE).hostname.replace(/^www\./,'') === 'witchculttranslation.com'; }catch(e){ return false; } }
+
+/* ---------- offline storage: chapters you read or download are kept on this phone ---------- */
+/* Stores: ch = chapter text, img = chapter images, meta = which images each chapter uses */
+const DB = (() => {
+  let p;
+  const open = () => p || (p = new Promise((res, rej) => {
+    let r; try { r = indexedDB.open('rz-reader', 2); } catch(e){ return rej(e); }
+    r.onupgradeneeded = () => ['ch','img','meta'].forEach(n => { if(!r.result.objectStoreNames.contains(n)) r.result.createObjectStore(n); });
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  }));
+  const tx = async (store, mode, fn) => {
+    const db = await open();
+    return new Promise((res, rej) => {
+      const t = db.transaction(store, mode);
+      const req = fn(t.objectStore(store));
+      t.oncomplete = () => res(req ? req.result : undefined);
+      t.onerror = () => rej(t.error);
+    });
+  };
+  const api = store => ({
+    get: k => tx(store, 'readonly', s => s.get(k)).catch(() => null),
+    put: (k, v) => tx(store, 'readwrite', s => s.put(v, k)).catch(() => {}),
+    del: k => tx(store, 'readwrite', s => s.delete(k)).catch(() => {}),
+    keys: () => tx(store, 'readonly', s => s.getAllKeys()).catch(() => []),
+  });
+  return {ch: api('ch'), img: api('img'), meta: api('meta'),
+    allMeta: () => open().then(db => new Promise(res => {
+      const out = new Map(), t = db.transaction('meta', 'readonly');
+      t.objectStore('meta').openCursor().onsuccess = e => { const c = e.target.result; if(c){ out.set(c.key, c.value); c.continue(); } };
+      t.oncomplete = () => res(out); t.onerror = () => res(out);
+    })).catch(() => new Map())};
+})();
+let saved = new Set();     // chapters saved on this phone
+let imgSaved = new Set();  // images saved on this phone
+let meta = new Map();      // chapter -> {imgs:[...]}
+
+/* Inside the installed Android app, requests go through the phone's own network
+   stack (no browser restrictions), which is what lets images be saved too. */
+const NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+const NativeHttp = NATIVE ? window.Capacitor.Plugins.CapacitorHttp : null;
+const header = (h, name) => { if(!h) return ''; const k = Object.keys(h).find(x => x.toLowerCase() === name); return k ? h[k] : ''; };
+
+function imgSrcs(html){
+  const d = new DOMParser().parseFromString(html, 'text/html');
+  return [...new Set([...d.querySelectorAll('img')].map(i => i.getAttribute('src')).filter(s => s && /^https?:/i.test(s)))];
+}
+/* Download one image and keep it on the phone. Returns a Blob, or null. */
+async function saveImage(src){
+  const have = await DB.img.get(src);
+  if(have) return have;
+  let blob = null;
+  if(NativeHttp){
+    const r = await NativeHttp.get({url: src, responseType: 'blob'});
+    if(r.status >= 400) throw new Error('HTTP ' + r.status);
+    const mime = (header(r.headers, 'content-type') || 'image/jpeg').split(';')[0];
+    blob = await (await fetch(`data:${mime};base64,${r.data}`)).blob();
+  } else {
+    const r = await fetch(src, {referrerPolicy: 'no-referrer'});
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    blob = await r.blob();
+  }
+  await DB.img.put(src, blob);
+  imgSaved.add(src);
+  return blob;
+}
+/* A chapter counts as fully offline when its text and (if images are on) its images are saved */
+function isComplete(k){
+  if(!saved.has(k)) return false;
+  if(!S.images) return true;
+  const m = meta.get(k);
+  return !!m && m.imgs.every(s => imgSaved.has(s));
+}
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function isPdf(h){ return /\.pdf(\?|#|$)/i.test(h); }
+function inApp(h){ return isInternal(h) && !isPdf(h); }
+
+/* Load from the site's API. Normal requests first; if the browser blocks them
+   (e.g. the file was opened straight from your phone's storage), fall back to
+   the API's script-tag mode, which works from anywhere. */
+let useScriptMode = false;
+function jsonp(url){
+  return new Promise((res, rej) => {
+    const cb = 'rzcb' + Math.random().toString(36).slice(2);
+    const s = document.createElement('script');
+    const done = () => { clearTimeout(t); delete window[cb]; s.remove(); };
+    const t = setTimeout(() => { done(); rej(new Error('timeout')); }, 20000);
+    window[cb] = d => { done(); res(d); };
+    s.onerror = () => { done(); rej(new Error('network')); };
+    s.src = url + (url.includes('?') ? '&' : '?') + '_jsonp=' + cb;
+    document.head.appendChild(s);
+  });
+}
+async function getJSON(url){
+  if(NativeHttp){
+    const r = await NativeHttp.get({url, headers:{Accept:'application/json'}, responseType:'json'});
+    if(r.status >= 400) throw new Error('HTTP ' + r.status);
+    return typeof r.data === 'string' ? JSON.parse(r.data) : r.data;
+  }
+  if(!useScriptMode){
+    try {
+      const r = await fetch(url, {headers:{Accept:'application/json'}});
+      if(r.ok) return r.json();
+      if(r.status === 404) throw Object.assign(new Error('404'), {final:true});
+    } catch(e){ if(e.final) throw e; }
+    useScriptMode = true;
+  }
+  return jsonp(url);
+}
+
+/* ---------- table of contents ---------- */
+const tocMem = {};
+async function loadToc(arc){
+  if(tocMem[arc.id]) return tocMem[arc.id];
+  try {
+    const c = JSON.parse(localStorage.getItem('rz-toc-' + arc.id) || 'null');
+    if(c && c.v === 2){
+      tocMem[arc.id] = c.d;
+      // check for new chapters at most once a day, and only when online
+      if(navigator.onLine && Date.now() - c.t > 24*3600e3) refreshToc(arc).catch(() => {});
+      return c.d;
+    }
+  } catch(e) {}
+  return refreshToc(arc);
+}
+function cacheToc(id, d){
+  tocMem[id] = d;
+  try { localStorage.setItem('rz-toc-' + id, JSON.stringify({v:2, t:Date.now(), d})); } catch(e) {}
+}
+async function refreshToc(arc){
+  const f = '_fields=title,content';
+  if(arc.src.toc){
+    // Arcs 1–6 all live on the site's Table of Contents page
+    const page = (await getJSON(`${API}/pages?slug=table-of-content&_fields=content`))[0];
+    if(!page) throw new Error('Table of contents not found');
+    const groups = parseToc(page.content.rendered, true);
+    ARCS.forEach(a => { if(a.src.toc) cacheToc(a.id, groups[a.src.toc] || {sections:[], chapters:[]}); });
+    return tocMem[arc.id];
+  }
+  let page = arc.src.pid ? await getJSON(`${API}/pages/${arc.src.pid}?${f}`)
+                         : (await getJSON(`${API}/pages?slug=${arc.src.slug}&${f}`))[0];
+  if(!page) throw new Error('Arc page not found');
+  const d = parseToc(page.content.rendered, false);
+  cacheToc(arc.id, d);
+  return d;
+}
+function isChapterLink(href, label){
+  if(!href || !label) return false;
+  let u; try { u = new URL(href, SITE); } catch(e){ return false; }
+  const host = u.hostname.replace(/^www\./,'');
+  const chapterish = /chapter|prologue|epilogue|interlude|intermission|ch\.?\s*\d/i.test(label);
+  if(host === 'witchculttranslation.com'){
+    if(u.pathname.startsWith('/wp-content')) return isPdf(href);
+    return /^\/\d{4}\/\d{2}\/\d{2}\/[^/]+/.test(u.pathname) || chapterish;
+  }
+  if(/syosetu|reddit|twitter|x\.com|discord|mega\.nz|google|fandom|rezerodb/.test(host)) return false;
+  return chapterish || /eminenttranslations|kagurojp|translationchicken/.test(host);
+}
+/* split=true: the page holds several arcs, each under an "Arc N – …" heading.
+   Returns {N: {sections, chapters}} then; otherwise one {sections, chapters}. */
+function parseToc(html, split){
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const G = {};
+  const newGroup = () => ({sections:[], cur:{name:'', items:[]}});
+  let g = split ? null : (G[0] = newGroup());
+  const seen = new Set(), seenLi = new Set();
+  for(const el of doc.body.querySelectorAll('h1,h2,h3,h4,h5,p,a')){
+    const tag = el.tagName;
+    if(tag !== 'A'){
+      if(el.querySelector('a')) continue;
+      const txt = clean(el.textContent);
+      if(!txt || txt.length > 80 || /^[※\s]+$/.test(txt)) continue;
+      const isHead = tag[0] === 'H' || (tag === 'P' && el.querySelector('strong,b') && clean(el.querySelector('strong,b').textContent) === txt);
+      if(!isHead) continue;
+      const m = split && txt.match(/^Arc\s*(\d+)\b/i);
+      if(m){ g = G[m[1]] || (G[m[1]] = newGroup()); continue; }
+      if(!g) continue;
+      if(g.cur.items.length){ g.sections.push(g.cur); g.cur = {name:txt, items:[]}; } else g.cur.name = txt;
+      continue;
+    }
+    if(!g) continue;
+    let href, label;
+    const li = el.closest('li');
+    if(li){
+      if(seenLi.has(li)) continue;
+      seenLi.add(li);
+      const as = [...li.querySelectorAll('a')].filter(a => !a.closest('li') || a.closest('li') === li);
+      const best = as.reduce((m,a) => clean(a.textContent).length > clean(m.textContent).length ? a : m, as[0]);
+      href = best.getAttribute('href');
+      label = clean([...li.childNodes].filter(n => !(n.nodeType === 1 && /^(UL|OL)$/.test(n.tagName))).map(n => n.textContent).join(''));
+    } else {
+      href = el.getAttribute('href'); label = clean(el.textContent);
+    }
+    if(!isChapterLink(href, label)) continue;
+    const k = normUrl(href);
+    if(seen.has(k)) continue;
+    seen.add(k);
+    g.cur.items.push({href: new URL(href, SITE).href, label});
+  }
+  const out = {};
+  for(const [key, grp] of Object.entries(G)){
+    if(grp.cur.items.length) grp.sections.push(grp.cur);
+    const flat = [];
+    grp.sections.forEach((s, si) => s.items.forEach(it => { it.s = si; it.i = flat.length; flat.push(it); }));
+    out[key] = {sections: grp.sections.map(s => s.name), chapters: flat};
+  }
+  return split ? out : out[0];
+}
+
+/* ---------- chapter loading & cleanup ---------- */
+async function loadChapter(href){
+  const key = normUrl(href);
+  const hit = await DB.ch.get(key);
+  if(hit){ if(!meta.has(key)) await storeMeta(key, hit.html); return Object.assign({offline:true}, hit); }
+  const d = await fetchChapter(href);
+  await DB.ch.put(key, d);
+  saved.add(key);
+  await storeMeta(key, d.html);
+  return d;
+}
+async function storeMeta(key, html){
+  const m = {imgs: imgSrcs(html)};
+  meta.set(key, m);
+  await DB.meta.put(key, m);
+}
+async function fetchChapter(href){
+  const u = new URL(href);
+  const slug = u.pathname.split('/').filter(Boolean).pop().toLowerCase();
+  const f = '_fields=title,content,link';
+  let r = await getJSON(`${API}/posts?slug=${slug}&${f}`);
+  if(!r.length) r = await getJSON(`${API}/pages?slug=${slug}&${f}`);
+  if(!r.length) throw new Error('Chapter not found');
+  return {title: decode(r[0].title.rendered), html: sanitize(r[0].content.rendered), link: r[0].link};
+}
+function sanitize(html){
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  doc.querySelectorAll('script,style,iframe,object,embed,form,noscript,ins,link,meta,.sharedaddy,.jp-relatedposts,.wpcnt,.adsbygoogle').forEach(n => n.remove());
+  // lazy-loading plugins keep the real image address in a data attribute
+  doc.querySelectorAll('img').forEach(img => {
+    const real = img.getAttribute('data-lazy-src') || img.getAttribute('data-src') || img.getAttribute('data-orig-file');
+    const cur = img.getAttribute('src') || '';
+    if(real && (!cur || cur.startsWith('data:'))) img.setAttribute('src', real);
+    const s = img.getAttribute('src') || '';
+    if(s.startsWith('//')) img.setAttribute('src', 'https:' + s);
+    else if(s && !/^https?:|^data:/i.test(s)) { try { img.setAttribute('src', new URL(s, SITE).href); } catch(e){} }
+  });
+  doc.body.querySelectorAll('*').forEach(el => {
+    const st = (el.getAttribute('style') || '').toLowerCase();
+    const cls = [];
+    if(/text-align:\s*center/.test(st) || el.getAttribute('align') === 'center' || /aligncenter|has-text-align-center/.test(el.className)) cls.push('c');
+    if(/underline/.test(st)) cls.push('u');
+    if(/font-style:\s*italic/.test(st)) cls.push('i');
+    if(/font-weight:\s*(bold|[6-9]00)/.test(st)) cls.push('b');
+    const keep = {A:['href'], IMG:['src','alt'], TD:['colspan','rowspan'], TH:['colspan','rowspan']}[el.tagName] || [];
+    [...el.attributes].forEach(a => { if(!keep.includes(a.name)) el.removeAttribute(a.name); });
+    if(cls.length) el.className = cls.join(' ');
+    if(el.tagName === 'A'){
+      const h = el.getAttribute('href') || '';
+      if(/^\s*javascript:/i.test(h)) el.removeAttribute('href');
+      else { el.target = '_blank'; el.rel = 'noopener noreferrer'; }
+    }
+    if(el.tagName === 'IMG'){ el.loading = 'lazy'; el.decoding = 'async'; el.referrerPolicy = 'no-referrer'; }
+    if(el.tagName === 'TABLE'){ const w = doc.createElement('div'); w.className = 'tablewrap'; el.replaceWith(w); w.appendChild(el); }
+  });
+  return doc.body.innerHTML;
+}
+
+/* ---------- views ---------- */
+function setBar(title, sub, backHash){
+  $('#title').innerHTML = esc(title) + (sub ? `<small>${esc(sub)}</small>` : '');
+  const b = $('#back');
+  b.hidden = !backHash;
+  b.onclick = () => { location.hash = backHash; };
+  $('#progress').style.width = '0';
+}
+const loading = msg => `<div class="state"><div class="spin"></div>${esc(msg)}</div>`;
+const failed = (msg, link) => `<div class="state">${esc(msg)}<br>${link ? `<a href="${esc(link)}" target="_blank" rel="noopener">Open it on Witch Cult Translations</a>` : ''}<br><a href="#" onclick="route();return false">Try again</a></div>`;
+
+function home(){
+  setBar('Re:Zero Reader', '', null);
+  document.title = 'Re:Zero Reader';
+  const L = S.last && arcById(S.last.arc);
+  ARCS.forEach(a => { if(!tocMem[a.id]) try { const c = JSON.parse(localStorage.getItem('rz-toc-'+a.id)||'null'); if(c && c.v === 2) tocMem[a.id] = c.d; } catch(e){} });
+  main.innerHTML = `
+    <section class="hero">
+      <h2>Re:Zero</h2>
+      <p>Web novel, Witch Cult Translations</p>
+    </section>
+    ${L ? `<a class="resume" href="#read/${L.id}/${S.last.idx}">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" style="color:var(--accent);flex:none"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+      <div><b>Return to checkpoint</b><span>Arc ${esc(L.n)} · ${esc(S.last.label)}</span></div></a>` : ''}
+    <div class="mark" aria-hidden="true">※ ※ ※ ※ ※ ※ ※ ※ ※ ※ ※ ※</div>
+    <ul class="arcs">
+      ${ARCS.map(a => {
+        const n = (S.read[a.id] || []).length;
+        const t = tocMem[a.id] ? tocMem[a.id].chapters.length : 0;
+        const off = tocMem[a.id] ? tocMem[a.id].chapters.filter(c => saved.has(normUrl(c.href))).length : 0;
+        return `<li><a href="#arc/${a.id}">
+          <span class="num">${a.n}</span>
+          <span><strong>${esc(a.title)}</strong><em>${a.sub ? esc(a.sub) + ' · ' : ''}${n ? `${n}${t ? ' / ' + t : ''} read` : 'Not started'}${off ? ` · ${off} offline` : ''}</em></span>
+          <span class="chev">›</span></a></li>`;
+      }).join('')}
+    </ul>`;
+}
+
+async function arcView(id){
+  const arc = arcById(id); if(!arc) return home();
+  setBar(`Arc ${arc.n}`, arc.title, '');
+  document.title = `Arc ${arc.n} · Re:Zero Reader`;
+  main.innerHTML = loading('Loading chapter list…');
+  let toc;
+  try { toc = await loadToc(arc); } catch(e){ main.innerHTML = failed(navigator.onLine ? "Couldn't load this arc's chapter list. Check your connection." : "You're offline, and this arc hasn't been opened on this phone yet. Open it once while connected.", SITE + (arc.src.toc ? '/table-of-content/' : '/' + arc.src.slug + '/')); return; }
+  if(location.hash !== '#arc/' + id) return;
+  const read = new Set(S.read[id] || []);
+  const lastIdx = S.last && S.last.arc === id ? S.last.idx : -1;
+  let html = '', cur = -1;
+  toc.chapters.forEach(c => {
+    if(c.s !== cur){ if(cur !== -1) html += '</ul>'; cur = c.s; html += (toc.sections[c.s] ? `<h3 class="phase">${esc(toc.sections[c.s])}</h3>` : '') + '<ul class="chs">'; }
+    const k = normUrl(c.href), r = read.has(k), ext = !inApp(c.href);
+    html += `<li data-q="${esc(c.label.toLowerCase())}"><a class="${r ? 'read' : ''} ${c.i === lastIdx ? 'last' : ''}" ${ext ? `href="${esc(c.href)}" target="_blank" rel="noopener"` : `href="#read/${id}/${c.i}"`}>
+      <span class="dot ${isComplete(k) ? 'on' : ''}" data-k="${esc(k)}" title="Saved offline"></span><span class="t">${esc(c.label)}</span>${ext ? `<span class="ext">${isPdf(c.href) ? 'PDF' : 'partner site'} ↗</span>` : r ? '<span class="ok">✓</span>' : ''}</a></li>`;
+  });
+  if(cur !== -1) html += '</ul>';
+  main.innerHTML = `
+    <section class="tochead">
+      <div class="eyebrow">Arc ${esc(arc.n)}</div>
+      <h2>${esc(arc.title)}</h2>
+      <p>${toc.chapters.length} chapters · ${read.size} read</p>
+      <div class="offline" id="offline"></div>
+      <input class="find" id="find" type="search" placeholder="Find a chapter, e.g. 54 or Rem" aria-label="Find a chapter">
+    </section>
+    ${toc.chapters.length ? html : `<div class="state">No chapters are listed on this arc's page yet.<br><a href="${SITE}" target="_blank" rel="noopener">Check the site</a></div>`}
+    <div style="height:40px"></div>`;
+  $('#find').addEventListener('input', e => {
+    const q = e.target.value.toLowerCase().trim();
+    main.querySelectorAll('.chs li').forEach(li => li.hidden = q && !li.dataset.q.includes(q));
+    main.querySelectorAll('.phase').forEach(h => { const ul = h.nextElementSibling; h.hidden = ul && ![...ul.children].some(li => !li.hidden); });
+  });
+  renderOffline(id, toc);
+  const lastEl = main.querySelector('.chs a.last');
+  if(lastEl) lastEl.scrollIntoView({block:'center'});
+}
+
+/* ---------- download a whole arc for offline reading ---------- */
+let dl = null;           // the download in progress, if any
+let removeArmed = false; // two-tap confirm for removing downloads
+function renderOffline(id, toc){
+  const box = document.getElementById('offline');
+  if(!box || location.hash !== '#arc/' + id) return;
+  const readable = toc.chapters.filter(c => inApp(c.href));
+  const have = readable.filter(c => isComplete(normUrl(c.href))).length;
+  const missing = readable.length - have;
+  const textMissing = readable.filter(c => !saved.has(normUrl(c.href))).length;
+  const skipped = toc.chapters.length - readable.length;
+  const note = skipped ? `<small>${skipped} chapter${skipped > 1 ? 's are PDFs or on partner sites' : ' is a PDF or on a partner site'}, so ${skipped > 1 ? 'they' : 'it'} can't be saved here.</small>` : '';
+  if(!readable.length){ box.innerHTML = `<div class="msg">Nothing to save offline for this arc.${note}</div>`; return; }
+  if(dl && dl.arc === id){
+    box.innerHTML = `<div class="msg">Downloading ${dl.done} of ${dl.total}…<small>Keep this screen open. Wi-Fi recommended.</small></div>
+      <button class="btn ghost" id="dlStop">Stop</button>
+      <div class="bartrack"><i style="width:${dl.total ? dl.done / dl.total * 100 : 0}%"></i></div>`;
+    document.getElementById('dlStop').onclick = () => { dl.stop = true; };
+    return;
+  }
+  // rough guide: ~50 KB of text per chapter, ~400 KB of images per chapter
+  const mb = Math.max(1, Math.round(textMissing * 0.05 + (S.images ? missing * 0.4 : 0)));
+  box.innerHTML = missing
+    ? `<div class="msg">${have} of ${readable.length} saved for offline<small>Downloading the rest${S.images ? ', with images,' : ''} uses roughly ${mb} MB. Use Wi-Fi to save mobile data.</small>${note}</div>
+       <button class="btn" id="dlGo">Download${have ? ' rest' : ' arc'}</button>
+       ${have ? `<button class="btn ghost" id="dlDel">${removeArmed ? 'Tap again to remove' : 'Remove'}</button>` : ''}`
+    : `<div class="msg">All ${readable.length} chapters saved <span class="pill">Offline</span><small>${S.images ? 'Text and images are on your phone. ' : ''}Reading this arc uses no data.</small>${note}</div>
+       <button class="btn ghost" id="dlDel">${removeArmed ? 'Tap again to remove' : 'Remove'}</button>`;
+  const go = document.getElementById('dlGo');
+  if(go) go.onclick = () => downloadArc(id, toc);
+  const del = document.getElementById('dlDel');
+  if(del) del.onclick = async () => {
+    if(!removeArmed){ removeArmed = true; renderOffline(id, toc); setTimeout(() => { removeArmed = false; renderOffline(id, toc); }, 4000); return; }
+    removeArmed = false;
+    for(const c of readable){
+      const k = normUrl(c.href);
+      const m = meta.get(k);
+      if(m) for(const s of m.imgs){ await DB.img.del(s); imgSaved.delete(s); }
+      if(saved.has(k)){ await DB.ch.del(k); saved.delete(k); }
+      await DB.meta.del(k); meta.delete(k);
+    }
+    main.querySelectorAll('.dot.on').forEach(d => d.classList.remove('on'));
+    renderOffline(id, toc);
+  };
+}
+async function downloadArc(id, toc){
+  if(dl) return;
+  const list = toc.chapters.filter(c => inApp(c.href) && !isComplete(normUrl(c.href)));
+  dl = {arc:id, stop:false, done:0, total:list.length, failed:0};
+  try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch(e) {}
+  renderOffline(id, toc);
+  for(const c of list){
+    if(dl.stop) break;
+    const k = normUrl(c.href);
+    try {
+      let rec = saved.has(k) ? await DB.ch.get(k) : null;
+      if(!rec){
+        rec = await fetchChapter(c.href);
+        await DB.ch.put(k, rec);
+        saved.add(k);
+        await sleep(250); // go easy on the translators' server
+      }
+      if(!meta.has(k)) await storeMeta(k, rec.html);
+      if(S.images){
+        for(const s of meta.get(k).imgs){
+          if(dl.stop) break;
+          if(!imgSaved.has(s)) { try { await saveImage(s); } catch(e){ dl.failed++; } }
+        }
+      }
+      const dot = main.querySelector(`.dot[data-k="${CSS.escape(k)}"]`);
+      if(dot) dot.classList.toggle('on', isComplete(k));
+    } catch(e){
+      dl.failed++;
+      if(!navigator.onLine) break;
+    }
+    dl.done++;
+    renderOffline(id, toc);
+  }
+  dl = null;
+  renderOffline(id, toc);
+}
+
+let scrollSave = null;
+async function readView(id, idx){
+  const arc = arcById(id); if(!arc) return home();
+  idx = +idx;
+  setBar(`Arc ${arc.n}`, '', 'arc/' + id);
+  main.innerHTML = loading('Loading chapter…');
+  let toc, ch, data;
+  try {
+    toc = await loadToc(arc);
+    ch = toc.chapters[idx];
+    if(!ch) { location.hash = 'arc/' + id; return; }
+    setBar(ch.label, `Arc ${arc.n} · ${toc.sections[ch.s] || arc.title}`, 'arc/' + id);
+    if(!inApp(ch.href)){ main.innerHTML = failed(isPdf(ch.href) ? 'This chapter is a PDF.' : 'This chapter is hosted on a partner site.', ch.href); return; }
+    data = await loadChapter(ch.href);
+  } catch(e){
+    main.innerHTML = failed(navigator.onLine ? "Couldn't load this chapter. Check your connection." : "You're offline, and this chapter isn't saved yet. Use “Download arc” on the chapter list while connected.", ch && ch.href);
+    return;
+  }
+  if(location.hash !== `#read/${id}/${idx}`) return;
+  document.title = `${ch.label} · Re:Zero Reader`;
+  const prev = toc.chapters[idx-1], next = toc.chapters[idx+1];
+  const navA = (c, dir) => !c ? `<span class="${dir}"><small>${dir === 'prev' ? 'Previous' : 'Next'}</small><b>—</b></span>`
+    : `<a class="${dir}" ${inApp(c.href) ? `href="#read/${id}/${c.i}"` : `href="${esc(c.href)}" target="_blank" rel="noopener"`} data-dir="${dir}"><small>${dir === 'prev' ? '‹ Previous' : 'Next ›'}</small><b>${esc(c.label)}</b></a>`;
+  const nav = `<nav class="nav">${navA(prev,'prev')}${navA(next,'next')}</nav>`;
+  main.innerHTML = `
+    <article class="chapter">
+      <div class="meta">Arc ${esc(arc.n)} · ${esc(toc.sections[ch.s] || arc.title)}${data.offline ? ' <span class="pill">Offline</span>' : ''}</div>
+      <h2 class="ctitle">${esc(data.title)}</h2>
+      ${prepImages(data.html)}
+    </article>
+    ${nav}
+    <a class="src" href="${esc(data.link)}" target="_blank" rel="noopener">Read on witchculttranslation.com — leave the translators a comment ↗</a>`;
+  main.querySelectorAll('.nav a[data-dir="next"]').forEach(a => a.addEventListener('click', () => markRead(id, ch.href)));
+  fillImages();
+
+  S.last = {arc:id, idx, label:ch.label}; save();
+  const k = normUrl(ch.href);
+  const ratio = S.pos[k] || 0;
+  const restore = () => window.scrollTo(0, ratio * (document.documentElement.scrollHeight - innerHeight));
+  if(ratio > 0.01){ restore(); setTimeout(restore, 400); } else window.scrollTo(0, 0);
+
+  scrollSave = () => {
+    const h = document.documentElement.scrollHeight - innerHeight;
+    const r = h > 0 ? Math.min(1, scrollY / h) : 1;
+    $('#progress').style.width = (r * 100) + '%';
+    S.pos[k] = r;
+    if(r > 0.92) markRead(id, ch.href, true);
+    clearTimeout(scrollSave.t); scrollSave.t = setTimeout(save, 400);
+  };
+}
+/* Images: every picture becomes a placeholder first, then gets filled from the phone's
+   storage. If it isn't saved yet, it's downloaded once (when images are on) and kept. */
+let objectUrls = [];
+function prepImages(html){
+  const d = new DOMParser().parseFromString(html, 'text/html');
+  d.querySelectorAll('img').forEach(img => {
+    const b = d.createElement('button');
+    b.className = 'imgph';
+    b.dataset.src = img.getAttribute('src') || '';
+    b.dataset.alt = img.getAttribute('alt') || '';
+    b.textContent = 'Loading image…';
+    img.replaceWith(b);
+  });
+  return d.body.innerHTML;
+}
+async function fillImage(ph, fetchIfMissing){
+  const src = ph.dataset.src;
+  if(!src || !/^https?:/i.test(src)) { ph.remove(); return; }
+  let blob = await DB.img.get(src);
+  if(blob) imgSaved.add(src);
+  else if(fetchIfMissing){
+    ph.textContent = 'Loading image…';
+    try { blob = await saveImage(src); }
+    catch(e){ ph.textContent = navigator.onLine ? "This image couldn't be loaded. Tap to try again." : 'Image not saved yet. Tap to load it when you are online.'; return; }
+  } else {
+    ph.textContent = 'Image hidden to save data. Tap to load.';
+    return;
+  }
+  if(!ph.isConnected) return;
+  const url = URL.createObjectURL(blob);
+  objectUrls.push(url);
+  const img = document.createElement('img');
+  img.src = url; img.alt = ph.dataset.alt || '';
+  ph.replaceWith(img);
+}
+function fillImages(){
+  main.querySelectorAll('.imgph').forEach(ph => fillImage(ph, S.images));
+}
+main.addEventListener('click', e => {
+  const b = e.target.closest('.imgph');
+  if(b) fillImage(b, true);
+});
+function markRead(id, href, quiet){
+  const k = normUrl(href);
+  const arr = S.read[id] || (S.read[id] = []);
+  if(!arr.includes(k)){ arr.push(k); save(); }
+}
+addEventListener('scroll', () => { if(scrollSave) scrollSave(); }, {passive:true});
+
+/* ---------- routing ---------- */
+function route(){
+  scrollSave = null;
+  objectUrls.forEach(u => URL.revokeObjectURL(u)); objectUrls = [];
+  const h = location.hash.replace(/^#/, '').split('/');
+  if(h[0] === 'arc' && h[1]) return arcView(h[1]);
+  if(h[0] === 'read' && h[1] && h[2] != null) return readView(h[1], h[2]);
+  window.scrollTo(0, 0);
+  home();
+}
+addEventListener('hashchange', route);
+
+/* ---------- settings ---------- */
+function applySettings(){
+  const r = document.documentElement;
+  if(S.theme === 'system') r.removeAttribute('data-theme'); else r.setAttribute('data-theme', S.theme);
+  r.style.setProperty('--fs', S.fs + 'px');
+  $('#fsVal').textContent = S.fs;
+  document.querySelectorAll('#themeSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === S.theme));
+  document.querySelectorAll('#imgSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === (S.images ? '1' : '0')));
+}
+document.querySelectorAll('#imgSeg button').forEach(b => b.onclick = () => {
+  S.images = b.dataset.v === '1'; applySettings(); save();
+  if(S.images) fillImages();
+  if(location.hash.startsWith('#arc/')) route();
+});
+function sheet(open){ $('#sheet').hidden = !open; $('#scrim').hidden = !open; }
+$('#settingsBtn').onclick = () => sheet($('#sheet').hidden);
+$('#scrim').onclick = () => sheet(false);
+document.querySelectorAll('#themeSeg button').forEach(b => b.onclick = () => { S.theme = b.dataset.v; applySettings(); save(); });
+$('#fsDown').onclick = () => { S.fs = Math.max(14, S.fs - 1); applySettings(); save(); };
+$('#fsUp').onclick = () => { S.fs = Math.min(28, S.fs + 1); applySettings(); save(); };
+addEventListener('keydown', e => { if(e.key === 'Escape') sheet(false); });
+
+/* Links to websites open in the phone's browser when running as the Android app */
+document.addEventListener('click', e => {
+  if(!NATIVE) return;
+  const a = e.target.closest('a[href]');
+  if(!a) return;
+  const h = a.getAttribute('href');
+  if(/^https?:/i.test(h) && !h.startsWith(location.origin)){ e.preventDefault(); location.href = h; }
+});
+
+applySettings();
+Promise.all([DB.ch.keys(), DB.img.keys(), DB.allMeta()]).then(([ch, im, m]) => {
+  saved = new Set(ch); imgSaved = new Set(im); meta = m;
+  route();
+});
+// When installed from a web address (not the Android app), keep the app itself available offline
+if(!NATIVE && 'serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
